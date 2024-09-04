@@ -40,7 +40,10 @@ void Interrupt::create(RFDATA *r){
 
 void Interrupt::set(RFDATA *r, uint8_t id){
     int16_t p = findById(id);
-    if(p < 0) return;
+    if(p < 0) {
+        puts("           TABLE NOT FOUND");
+        return;
+    }
     memcpy(_rfdata + (sizeof(RFDATA) * findById(id)), r, sizeof(RFDATA));
 }
 

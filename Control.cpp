@@ -14,16 +14,18 @@ void ControlLight::Message(uint8_t id, char *txt, uint8_t len){
     rft.cmd = CMD_CLEAN_LCD;
     memcpy((char*)rft.text, txt, (len > 10) ? 10 : len);
     send(&rft);
-    StructCopyPrivate(&rft);
+    StructCopyLocal(&rft);
 }
 
 void ControlLight::Lock(uint8_t id, bool state){
     RFDATA rft;
     rft.all_devices = !id;
     rft.id = id;
+    rft.device_enable = !state;
     rft.cmd = state ? CMD_DISABLE_DEVICE : CMD_ENABLE_DEVICE;
+    StructCopyLocal(&rft);
     send(&rft);
-    StructCopyPrivate(&rft);
+    
 }
 
 void ControlLight::On(uint8_t id){
@@ -78,14 +80,17 @@ void ControlLight::alternateState(uint8_t id){
 void ControlLight::StructCopyLocal(RFDATA *rf1){
     if(rf1->all_devices){
         for(uint8_t i = 0; i < interrupt_local.Total(); i++){
-            rf1->id = i;
-            interrupt_local.set(rf1, (rf1->id)-1);
+            rf1->id = i + 1;
+            rf1->all_devices = false;
+            interrupt_local.set(rf1, (rf1->id));
+            rf1->all_devices = true;
         }
         return;
     }
 
-    if(interrupt_local.exist((rf1->id)-1)){
-        interrupt_local.set(rf1, (rf1->id)-1);
+    if(interrupt_local.exist((rf1->id))){
+        //printf("finded: %i\n", )
+        interrupt_local.set(rf1, (rf1->id));
     }
     else {
         interrupt_local.create(rf1);
@@ -93,25 +98,6 @@ void ControlLight::StructCopyLocal(RFDATA *rf1){
     }
 }
 
-void ControlLight::StructCopyPrivate(RFDATA *rf1){
-
-    if(rf1->all_devices){
-
-        for(uint8_t i = 0; i < interrupt_private.Total(); i++){
-            rf1->id = i;
-            interrupt_private.set(rf1, (rf1->id)-1);
-        }
-        return;
-    }
-
-    if(interrupt_private.exist((rf1->id)-1)){
-        interrupt_private.set(rf1, (rf1->id)-1);
-    }
-    else {
-        interrupt_local.create(rf1);
-        interrupt_private.create(rf1);
-    }
-}
 
 void ControlLight::requestInfo(uint8_t id){
     RFDATA rft = interrupt_private.get(id);
@@ -134,7 +120,7 @@ void ControlLight::Check(uint8_t id, RFDATA *rf){
         interrupt_private.create(rf);
         interrupt_local.create(rf);
     }
-    else interrupt_local.set(rf, id);
+    else interrupt_private.set(rf, id);
 }
 
 void ControlLight::Thread(){
@@ -149,30 +135,35 @@ void ControlLight::Thread(){
     SYSTEM_COUNT++;
     delay(150);
 
-    for(uint8_t light = 0; light < interrupt_local.Total(); light++){
+    for(uint8_t light = 0; light < interrupt_private.Total(); light++){
         printf("\033[1;33m");
         
-        printf(":::interrupt_local.Total(): %i\n", interrupt_local.Total());
+        printf(":::interrupt_private.Total(): %i\n", interrupt_private.Total());
         
         RFDATA rft_l = interrupt_local.getByPosition(light);
         RFDATA rft_p = interrupt_private.getByPosition(light);
 
         for(int i = 0; i < sizeof(RFDATA); i++) printf("%x ", ((uint8_t*)&rft_l)[i]);
-        printf("\n");
+        printf("  <-\nid:%i   e:%i\n",rft_l.id, rft_l.device_enable);
         printf("\033[1;34m");
         for(int i = 0; i < sizeof(RFDATA); i++) printf("%x ", ((uint8_t*)&rft_p)[i]);
-        printf("\n");
+        printf("  <=\nid: %i   e:%i\n",rft_p.id, rft_p.device_enable);
         printf("\033[0m");
         if(rft_l.id == 255 || rft_p.id == 255) continue;
         
         if(rft_l.device_enable != rft_p.device_enable){
-            rft_p.cmd = (!rft_p.device_enable ? CMD_ENABLE_DEVICE : CMD_DISABLE_DEVICE);
+            rft_p.cmd = (rft_l.device_enable ? CMD_ENABLE_DEVICE : CMD_DISABLE_DEVICE);
+            rft_p.device_enable = rft_l.device_enable;
+            interrupt_private.set(&rft_p, rft_p.id);
             send(&rft_p);
         }
         delay(150);
 
+        /*
         rft_l.device_enable = rft_p.device_enable;
         interrupt_private.set(&rft_l, rft_l.id);
+        */
+
         requestInfo(rft_p.id);
         delay(700);
     }
