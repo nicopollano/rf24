@@ -1,61 +1,98 @@
 void ControlLight::setTime(uint8_t id, uint8_t hh, uint8_t mm){
+    RFDATA t = interrupt_local.getById(id);
     RFDATA rft;
     rft.all_devices = !id;
     rft.id = id;
     rft.cmd = CMD_IGNORE_DATA;
+    if(t.id != 255 && t.id > 0){
+        rft.device_enable = t.device_enable;
+        rft.pinstate = t.pinstate;
+    }
     send(&rft);
-    //StructCopyLocal(&rft);
+    StructCopyLocal(&rft, 3);
 }
 
 void ControlLight::Message(uint8_t id, char *txt, uint8_t len){
+    RFDATA t = interrupt_local.getById(id);
     RFDATA rft;
     rft.all_devices = !id;
     rft.id = id;
     rft.cmd = CMD_CLEAN_LCD;
     memcpy((char*)rft.text, txt, (len > 10) ? 10 : len);
+    if(t.id != 255 && t.id > 0){
+        rft.device_enable = t.device_enable;
+        rft.pinstate = t.pinstate;
+        rft.time.hh = t.time.hh;
+        rft.time.mm = t.time.mm;
+    }
     send(&rft);
-    StructCopyLocal(&rft);
+    StructCopyLocal(&rft, 4);
 }
 
 void ControlLight::Lock(uint8_t id, bool state){
+    RFDATA t = interrupt_local.getById(id);
     RFDATA rft;
     rft.all_devices = !id;
     rft.id = id;
     rft.device_enable = !state;
     rft.cmd = state ? CMD_DISABLE_DEVICE : CMD_ENABLE_DEVICE;
-    StructCopyLocal(&rft);
+    if(t.id != 255 && t.id > 0){
+        rft.pinstate = t.pinstate;
+        rft.time.hh = t.time.hh;
+        rft.time.mm = t.time.mm;
+    }
+    StructCopyLocal(&rft, 1);
     send(&rft);
     
 }
 
 void ControlLight::On(uint8_t id){
+    RFDATA t = interrupt_local.getById(id);
     RFDATA rft;
     rft.all_devices = !id;
     rft.id = id;
     rft.cmd = CMD_PIN_STATE;
     rft.pinstate = 1;
+    if(t.id != 255 && t.id > 0){
+        rft.device_enable = t.device_enable;
+        rft.time.hh = t.time.hh;
+        rft.time.mm = t.time.mm;
+    }
     send(&rft);
-    //StructCopyLocal(&rft);
+    StructCopyLocal(&rft, 2);
 }
 
 void ControlLight::Off(uint8_t id){
+    RFDATA t = interrupt_local.getById(id);
     RFDATA rft;
     rft.all_devices = !id;
     rft.id = id;
     rft.cmd = CMD_PIN_STATE;
     rft.pinstate = 0;
+    if(t.id != 255 && t.id > 0){
+        rft.device_enable = t.device_enable;
+        rft.pinstate = t.pinstate;
+        rft.time.hh = t.time.hh;
+        rft.time.mm = t.time.mm;
+    }
     send(&rft);
-    //StructCopyLocal(&rft);
+    StructCopyLocal(&rft, 2);
 }
 
 void ControlLight::changeState(uint8_t id, uint8_t state){
+    RFDATA t = interrupt_local.getById(id);
     RFDATA rft;
     rft.all_devices = !id;
     rft.id = id;
     rft.cmd = CMD_PIN_STATE;
     rft.pinstate = state;
+    if(t.id != 255 && t.id > 0){
+        rft.device_enable = t.device_enable;
+        rft.time.hh = t.time.hh;
+        rft.time.mm = t.time.mm;
+    }
     send(&rft);
-    //StructCopyLocal(&rft);
+    StructCopyLocal(&rft, 2);
 }
 
 void ControlLight::alternateState(uint8_t id){
@@ -63,26 +100,44 @@ void ControlLight::alternateState(uint8_t id){
     uint8_t d = 0;
     if(id == 0){
         i = 0;
-        d = interrupt_private.Total();
+        d = interrupt_local.Total();
     }
     else{
         i = 0;
         d = 1;
     }
     for(uint8_t x = i; x < d; x++){
-        printf("p=%i\nid=%i\npinstate:%i\n", x, interrupt_private.getByPosition(x).id, interrupt_private.getByPosition(x).pinstate);
-        puts(":::::::::::::::::");
-        changeState(interrupt_private.getByPosition(x).id, !interrupt_private.getByPosition(x).pinstate);
-        puts(":::::::::::::::::");
+        printf("p=%i\nid=%i\npinstate:%i\n", x, interrupt_local.getByPosition(x).id, interrupt_local.getByPosition(x).pinstate);
+        changeState(interrupt_local.getByPosition(x).id, !interrupt_local.getByPosition(x).pinstate);
     }
 }
 
-void ControlLight::StructCopyLocal(RFDATA *rf1){
+void ControlLight::StructCopyLocal(RFDATA *rf1, uint8_t lock1_light2_time3_msg4){
     if(rf1->all_devices){
         for(uint8_t i = 0; i < interrupt_local.Total(); i++){
-            rf1->id = i + 1;
             rf1->all_devices = false;
-            interrupt_local.set(rf1, (rf1->id));
+            
+            RFDATA t = interrupt_local.getById(i + 1);
+            
+            if(t.id != 255 && t.id > 0){
+                rf1->id = t.id;
+                switch(lock1_light2_time3_msg4){
+                    case 1:{
+                        t.device_enable = rf1->device_enable;
+                        break;
+                    }
+                    case 2:{
+                        t.pinstate = rf1->pinstate;
+                        break;
+                    }
+                    case 3:{
+                        t.time.hh = rf1->time.hh;
+                        t.time.mm = rf1->time.mm;
+                        break;
+                    }
+                }
+                interrupt_local.set(&t, (t.id));
+            }
             rf1->all_devices = true;
         }
         return;

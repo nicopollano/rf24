@@ -16,12 +16,12 @@ class ControlLight{
         void clearLCD(uint8_t id);
         void Check(uint8_t id, RFDATA *rf);
         void Thread();
-        void StructCopyPrivate(RFDATA* rf1);
+        void StructCopyPrivate(RFDATA* rf1, uint8_t lock1_light2_time3_msg4);
         
     //private:
         Interrupt interrupt_local;
         Interrupt interrupt_private;
-        void StructCopyLocal(RFDATA *rf1);
+        void StructCopyLocal(RFDATA *rf1, uint8_t lock1_light2_time3_msg4);
         void requestInfo(uint8_t id);
         void send(RFDATA *rf);
 };

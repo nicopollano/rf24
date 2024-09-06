@@ -10,7 +10,7 @@ class Interrupt{
         void set(RFDATA *r, uint8_t id);
         RFDATA get(uint8_t id);
         RFDATA getByPosition(uint8_t p);
-
+        RFDATA getById(uint8_t id);
         bool exist(uint8_t id);
         uint8_t Total();
 
@@ -19,6 +19,12 @@ class Interrupt{
         uint8_t _rfdata_size = 0;
         int16_t findById(uint8_t id);
 };
+
+RFDATA Interrupt::getById(uint8_t id){
+    uint8_t p = findById(id);
+    if(p >= _rfdata_size) return RFDATA{.id=255};
+    return _rfdata[p];
+}
 
 void Interrupt::create(RFDATA *r){
     if(_rfdata_size == 0){
